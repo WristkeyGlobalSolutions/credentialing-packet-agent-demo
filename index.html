@@ -1,0 +1,460 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>Credentialing Packet Agent — Live Demo</title>
+<style>
+  :root{
+    --bg:#F6F7F5; --surface:#FFFFFF; --surface2:#EEF2EE; --ink:#101814; --muted:#5B6B60; --line:#DDE3DD;
+    --teal:#0E7569; --teal-dark:#0A5C54; --teal-light:#E6F4F1;
+    --amber:#92400E; --amber-bg:#FEF3C7; --red:#991B1B; --red-bg:#FEE2E2; --green:#166534; --green-bg:#DCFCE7;
+    --orange:#9A3412; --orange-bg:#FFEDD5;
+    --radius:16px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#0B100E; --surface:#141A17; --surface2:#1C2520; --ink:#EDF2EE; --muted:#9AABA0; --line:#26332B; --teal:#2DD4BF; --teal-dark:#14B8A6; --teal-light:#12312E; --amber-bg:#3A2E0A; --red-bg:#3B1111; --green-bg:#122E1B; --orange-bg:#331A0A; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Manrope",system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+  a{color:var(--teal)}
+  button{font:inherit;cursor:pointer}
+  .wrap{max-width:1120px;margin:0 auto;padding:20px 18px 48px}
+  /* Top */
+  .top-badge{display:inline-flex;align-items:center;gap:8px;background:var(--ink);color:#fff;padding:7px 12px;border-radius:999px;font-size:12px;letter-spacing:.08em;font-weight:800;text-transform:uppercase}
+  .dot{width:8px;height:8px;border-radius:50%;background:#34D399;box-shadow:0 0 0 4px rgba(52,211,153,.25);animation:pulse 1.8s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+  h1{font-size:clamp(32px,6vw,56px);line-height:.95;letter-spacing:-.03em;margin:18px 0 12px;font-weight:800}
+  h1 span{color:var(--teal)}
+  .lead{font-size:18px;line-height:1.5;color:var(--muted);max-width:680px;margin:0}
+  .lead strong{color:var(--ink)}
+  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:22px 0}
+  .stat{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .stat b{font-size:22px;line-height:1;display:block}
+  .stat span{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  @media(max-width:640px){.stats{grid-template-columns:1fr 1fr}}
+  /* Controls */
+  .controls{display:flex;flex-wrap:wrap;gap:10px;margin:18px 0 8px}
+  .btn{min-height:48px;padding:12px 20px;border-radius:999px;border:1px solid var(--line);background:var(--surface);font-weight:800;font-size:15px;display:inline-flex;align-items:center;gap:8px}
+  .btn-primary{background:var(--teal);color:#fff;border-color:var(--teal);padding:14px 24px;font-size:16px}
+  .btn-primary:hover{background:var(--teal-dark)}
+  .btn:disabled{opacity:.55;cursor:not-allowed}
+  .hint{font-size:13px;color:var(--muted)}
+  /* Pipeline */
+  .pipeline{display:grid;grid-template-columns:repeat(5,1fr);gap:22px;padding:16px 0 4px}
+  .pipe-step{background:var(--surface);border:1px solid var(--line);padding:12px;border-radius:12px;position:relative}
+  .pipe-step + .pipe-step:before{content:"→";position:absolute;left:-19px;top:50%;transform:translateY(-50%);color:var(--muted);font-weight:800}
+  @media(max-width:760px){.pipeline{grid-template-columns:1fr 1fr;gap:10px}.pipe-step + .pipe-step:before{display:none}}
+  @media(max-width:380px){.pipeline{grid-template-columns:1fr}}
+  .pipe-step small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--teal);font-weight:800}
+  .pipe-step p{margin:4px 0 0;font-size:13px;line-height:1.4;font-weight:600}
+  /* Layout */
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:16px;margin-top:18px;align-items:start}
+  @media(max-width:860px){.grid{grid-template-columns:1fr}}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .card-head{padding:16px 18px 12px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+  .card-head h2{margin:0;font-size:15px;letter-spacing:.02em}
+  .card-head span{font-size:12px;color:var(--muted);font-weight:700}
+  /* Packet list */
+  .packet{width:100%;text-align:left;background:var(--surface);border:0;border-bottom:1px solid var(--line);padding:16px 18px;display:flex;gap:12px;align-items:flex-start}
+  .packet:last-child{border-bottom:0}
+  .packet.active{background:var(--teal-light)}
+  .avatar{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;font-weight:800;color:#fff;flex-shrink:0;font-size:15px}
+  .p-meta{flex:1;min-width:0}
+  .p-meta b{display:block;font-size:15px}
+  .p-meta p{margin:2px 0 0;font-size:13px;color:var(--muted);line-height:1.4}
+  .badge{font-size:11px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;padding:5px 8px;border-radius:999px;white-space:nowrap}
+  .b-wait{background:var(--surface2);color:var(--muted)}
+  .b-run{background:#DBEAFE;color:#1E40AF}
+  .b-pass{background:var(--green-bg);color:var(--green)}
+  .b-block{background:var(--red-bg);color:var(--red)}
+  .b-review{background:var(--amber-bg);color:var(--amber)}
+  .b-pause{background:var(--orange-bg);color:var(--orange)}
+  @media (prefers-color-scheme: dark){.b-run{background:#172554;color:#BFDBFE}}
+  /* Detail */
+  .detail-body{padding:18px}
+  .detail-empty{padding:32px 18px;text-align:center;color:var(--muted)}
+  .detail-empty strong{color:var(--ink);display:block;font-size:18px;margin-bottom:6px}
+  .stage-track{display:flex;gap:6px;margin:14px 0 18px;flex-wrap:wrap}
+  .stage{font-size:11px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:7px 10px;border-radius:999px;background:var(--surface2);color:var(--muted);border:1px solid var(--line)}
+  .stage.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+  .stage.done{background:var(--teal-light);color:var(--teal);border-color:transparent}
+  .fields{display:grid;gap:8px}
+  .field{display:grid;grid-template-columns:1fr auto;gap:8px 12px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
+  .field-name{font-weight:700;font-size:14px}
+  .field-quote{grid-column:1/-1;font-size:12.5px;color:var(--muted);font-family:"JetBrains Mono",monospace;line-height:1.4;word-break:break-word}
+  .field-quote:before{content:"“";} .field-quote:after{content:"”"}
+  .conf{display:flex;align-items:center;gap:8px;font-weight:800;font-size:13px}
+  .bar{width:64px;height:6px;background:var(--surface2);border-radius:999px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--teal);border-radius:999px}
+  .bar.low i{background:#D97706}.bar.blank i{background:#DC2626}
+  .say{margin-top:16px;background:#FFFBEB;border:1px solid #FDE68A;border-radius:12px;padding:14px 16px}
+  @media (prefers-color-scheme: dark){.say{background:#211A05;border-color:#453A0B}}
+  .say small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;color:#92400E}
+  @media (prefers-color-scheme: dark){.say small{color:#FBBF24}}
+  .say p{margin:6px 0 0;font-size:15px;line-height:1.5;font-weight:600}
+  /* MFA */
+  .mfa{margin-top:16px;border:2px dashed #F59E0B;background:var(--orange-bg);border-radius:14px;padding:16px}
+  .mfa h3{margin:0 0 6px;font-size:16px}
+  .mfa p{margin:0 0 12px;font-size:14px;color:var(--muted)}
+  .mfa-row{display:flex;gap:8px;flex-wrap:wrap}
+  .mfa input{flex:1;min-width:140px;min-height:48px;padding:12px 14px;border-radius:10px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:18px;letter-spacing:.2em;font-weight:700;text-align:center}
+  /* Log */
+  .log{background:#0B120E;color:#D1FAE5;border-radius:14px;padding:14px;font-family:"JetBrains Mono",monospace;font-size:12.5px;line-height:1.7;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+  .log .dim{color:#6B7D70}.log .warn{color:#FBBF24}.log .err{color:#FCA5A5}.log .ok{color:#6EE7B7}
+  /* Eval */
+  .eval-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:16px}
+  @media(max-width:760px){.eval-grid{grid-template-columns:1fr}}
+  .big-score{font-size:64px;line-height:1;font-weight:800;letter-spacing:-.04em}
+  .principles{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+  @media(max-width:700px){.principles{grid-template-columns:1fr}}
+  .pr{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .pr b{font-size:15px}
+  .pr p{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.5}
+  .footer{margin-top:28px;padding-top:18px;border-top:1px solid var(--line);color:var(--muted);font-size:13px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top-badge"><span class="dot"></span> Live Demo • Runs in your browser • Synthetic data only</div>
+  <h1>Credentialing Packet Agent<br><span>Rules beat AI.</span></h1>
+  <p class="lead">A small agent that checks doctor credentialing packets. It reads 11 fields, <strong>proves every answer with a verbatim quote</strong>, lets hard rules override the model, and pauses for a human where a human belongs. No typing in a terminal — just press Run.</p>
+
+  <div class="stats">
+    <div class="stat"><b>4 packets</b><span>Test cases</span></div>
+    <div class="stat"><b>11 fields</b><span>Per packet</span></div>
+    <div class="stat"><b>44 / 44</b><span>Eval answers</span></div>
+    <div class="stat"><b>$0.0003</b><span>Per clean packet</span></div>
+  </div>
+
+  <div class="controls">
+    <button class="btn btn-primary" id="runAllBtn" onclick="runAll()">▶ Run Full Demo — 90 seconds</button>
+    <button class="btn" id="evalBtn" onclick="runEval()">Run Eval Only</button>
+    <button class="btn" onclick="resetDemo()">↺ Reset</button>
+  </div>
+  <p class="hint">Practice mode: run it, read the yellow “Say this” box out loud for each packet. That’s the whole demo.</p>
+
+  <div class="pipeline" aria-label="How the agent works">
+    <div class="pipe-step"><small>01 • Read</small><p>Cheap model extracts all 11 fields first</p></div>
+    <div class="pipe-step"><small>02 • Prove</small><p>Quote-or-abstain: quote must match verbatim or confidence caps at 0.50</p></div>
+    <div class="pipe-step"><small>03 • Check</small><p>Deterministic rules: NPI math, expiry dates, conflicts — no AI</p></div>
+    <div class="pipe-step"><small>04 • Gate</small><p>90+ auto • 70–89 human review • &lt;70 left blank</p></div>
+    <div class="pipe-step"><small>05 • Escalate</small><p>Only problem fields go to the expensive model</p></div>
+  </div>
+
+  <div class="grid">
+    <!-- Queue -->
+    <section class="card">
+      <div class="card-head"><h2>Packet Queue</h2><span id="queueCount">0 / 4 done</span></div>
+      <div id="packetList"></div>
+      <div style="padding:14px 18px;border-top:1px solid var(--line)">
+        <p style="margin:0;font-size:13px;color:var(--muted);line-height:1.5"><strong style="color:var(--ink)">Remember the order:</strong> Good one submits, expired one stops, messy one stays blank, fight goes to a human.</p>
+      </div>
+    </section>
+
+    <!-- Detail + Log -->
+    <div style="display:grid;gap:16px">
+      <section class="card">
+        <div class="card-head"><h2 id="detailTitle">Live Run</h2><span id="detailStatus">Ready</span></div>
+        <div id="detailBody" class="detail-empty">
+          <strong>Press “Run Full Demo” to start</strong>
+          Packets will process one by one here — fields, confidence, quotes, and the final decision. Packet 1 will pause and ask you for the human code.
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-head"><h2>Audit Log — nothing hidden</h2><span>out / audit.jsonl</span></div>
+        <div style="padding:14px">
+          <div class="log" id="auditLog"><span class="dim">// Audit log will stream here as the agent works.
+ // Every extraction, rule check, escalation, and pause is written down.</span></div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <div class="eval-grid">
+    <section class="card" style="padding:20px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap">
+        <div>
+          <p style="margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:800;color:var(--teal)">Evaluation — graded on finished packets, not cheap calls</p>
+          <div class="big-score" id="evalScore">— / 44</div>
+          <p id="evalText" style="margin:8px 0 0;color:var(--muted);max-width:520px">Run the eval to grade the agent against the answer key in <code>golden.json</code> — all 4 packets × 11 fields.</p>
+        </div>
+        <button class="btn btn-primary" onclick="runEval()">Grade it</button>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px">
+        <div style="background:var(--surface2);border-radius:12px;padding:12px"><b id="evalCost">—</b><div style="font-size:12px;color:var(--muted);font-weight:700">TOTAL COST</div></div>
+        <div style="background:var(--surface2);border-radius:12px;padding:12px"><b id="evalEsc">—</b><div style="font-size:12px;color:var(--muted);font-weight:700">ESCALATIONS</div></div>
+        <div style="background:var(--surface2);border-radius:12px;padding:12px"><b id="evalDup">—</b><div style="font-size:12px;color:var(--muted);font-weight:700">DUPLICATES BLOCKED</div></div>
+      </div>
+    </section>
+
+    <section class="card" style="padding:20px">
+      <h2 style="margin:0 0 10px;font-size:16px">How it submits — once, and only once</h2>
+      <p style="margin:0;color:var(--muted);font-size:14px;line-height:1.6">Every packet gets a fingerprint (idempotency key) from its ID + document text on arrival. Submit the same packet again — double-click, retry, crash-and-restart — and the key is recognised and blocked.</p>
+      <button class="btn" id="dupBtn" onclick="tryDuplicate()" disabled style="margin-top:14px">Try submitting Chen again</button>
+      <p id="dupResult" style="margin:10px 0 0;font-size:14px;font-weight:700"></p>
+      <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
+        <p style="margin:0;font-size:13px;color:var(--muted)"><strong style="color:var(--ink)">State machine:</strong> RECEIVED → VERIFYING → PAUSED / IN_REVIEW / NEEDS_INFO / READY → SUBMITTED. Illegal jumps crash on purpose. No shortcuts.</p>
+      </div>
+    </section>
+  </div>
+
+  <div class="principles">
+    <div class="pr"><b>🔒 Rules outrank AI, always</b><p>An expired license stops the packet even at 95% model confidence. A date is a date — deterministic code decides, not the model.</p></div>
+    <div class="pr"><b>∅ Blank is safer than a guess</b><p>If the quote doesn’t verify or confidence is &lt;70, the field stays empty and goes to a human. The agent abstains on purpose.</p></div>
+    <div class="pr"><b>⏸ Pause is a feature</b><p>Portal login needs a human code. The agent parks with state saved and resumes exactly where it left off — it never logs in alone.</p></div>
+  </div>
+
+  <p class="footer">
+    <strong style="color:var(--ink)">About this demo:</strong> Interactive browser version of the <em>Credentialing Packet Agent</em> prototype built for the Assured Health conversation — synthetic packets only, no real PHI. Architecture mirrors the original TypeScript prototype: <code>deterministic.ts</code> (rule checker), <code>models.ts</code> (cheap → expensive routing), <code>gate.ts</code> (90 / 70 bands), <code>agent.ts</code> (orchestrator + state machine), <code>audit.ts</code> (append-only log). Closing line for the demo: <em>“That is how I build agents. Small rules first. Proof for every answer. A human where a human belongs.”</em>
+  </p>
+</div>
+
+<script>
+var PACKETS = [
+  {
+    id:"pkt-chen", name:"Dr. Maya Chen", short:"MC", color:"#0E7569", type:"Clean packet", desc:"Internal Medicine • NY • Everything in order",
+    say:"This packet is perfect. Every answer is a green check. Then it stops and waits for a human to type a code — because a robot should not log into a portal alone. Code goes in, it finishes. And it can never send the same packet twice.",
+    final:"SUBMITTED", finalClass:"b-pass", needsMFA:true, cost:"$0.00029",
+    fields:[
+      ["Full Name","Maya Chen, MD",0.95,"Maya Chen, MD — Internal Medicine"],
+      ["NPI","1234567893",0.95,"NPI: 1234567893"],
+      ["DEA","MC1234567",0.95,"DEA Registration MC1234567"],
+      ["State License","NY-284719",0.95,"New York License NY-284719"],
+      ["License Expiry","2027-08-31",0.95,"Expires 2027-08-31"],
+      ["Medical School","NYU Grossman School of Medicine",0.95,"NYU Grossman School of Medicine, MD 2016"],
+      ["Residency","Mount Sinai — Internal Medicine",0.95,"Residency, Internal Medicine, Mount Sinai"],
+      ["Board Certification","ABIM Certified",0.95,"Board Certified, American Board of Internal Medicine"],
+      ["Malpractice Insurance","Active — $1M / $3M",0.95,"Coverage $1,000,000 / $3,000,000 — Active"],
+      ["Work History","2019–Present, verified",0.95,"Continuous employment verified 2019–present"],
+      ["Sanctions Check","Clear — no exclusions",0.95,"No OIG / SAM exclusions found"]
+    ]
+  },
+  {
+    id:"pkt-okafor", name:"Dr. James Okafor", short:"JO", color:"#991B1B", type:"Expired license — hard stop", desc:"Family Medicine • NJ • AI is sure, rules say no",
+    say:"This one is my favorite. The AI was 95% sure about everything. But the license is expired, so the rules stopped the whole packet. Rules beat AI. A date is a date.",
+    final:"NEEDS_INFO", finalClass:"b-block", needsMFA:false, cost:"$0.00027", hardFail:"State License expired 2025-09-30 — deterministic check failed. Model confidence ignored.",
+    fields:[
+      ["Full Name","James Okafor, MD",0.95,"James Okafor, MD — Family Medicine"],
+      ["NPI","1987654321",0.95,"NPI: 1987654321"],
+      ["DEA","FO9876543",0.95,"DEA Registration FO9876543"],
+      ["State License","NJ-193847",0.95,"New Jersey License NJ-193847"],
+      ["License Expiry","2025-09-30 ⛔ EXPIRED",0.95,"Expires 2025-09-30"],
+      ["Medical School","Rutgers New Jersey Medical School",0.95,"Rutgers New Jersey Medical School, MD 2014"],
+      ["Residency","RWJ — Family Medicine",0.95,"Residency, Family Medicine, RWJ"],
+      ["Board Certification","ABFM Certified",0.95,"Board Certified, American Board of Family Medicine"],
+      ["Malpractice Insurance","Active — $1M / $3M",0.95,"Coverage $1,000,000 / $3,000,000 — Active"],
+      ["Work History","2017–Present, verified",0.95,"Continuous employment verified 2017–present"],
+      ["Sanctions Check","Clear — no exclusions",0.95,"No OIG / SAM exclusions found"]
+    ]
+  },
+  {
+    id:"pkt-nair", name:"Dr. Priya Nair", short:"PN", color:"#92400E", type:"Messy paperwork — abstains", desc:"Pediatrics • CA • Two fields unreadable, left blank",
+    say:"Here the paperwork was messy. Two answers were not clear, so the agent left them blank on purpose. It does not guess. Blank is safe. A wrong guess is not. A human gets those two.",
+    final:"IN_REVIEW", finalClass:"b-review", needsMFA:false, cost:"$0.00031",
+    fields:[
+      ["Full Name","Priya Nair, MD",0.94,"Priya Nair, MD — Pediatrics"],
+      ["NPI","1659872340",0.93,"NPI: 1659872340"],
+      ["DEA","∅ — left blank",0.42,"Quote failed verification — hedge language, no exact match"],
+      ["State License","CA-A98271",0.95,"California License CA-A98271"],
+      ["License Expiry","2026-12-31",0.92,"Expires 2026-12-31"],
+      ["Medical School","UCSF School of Medicine",0.95,"UCSF School of Medicine, MD 2018"],
+      ["Residency","UCLA — Pediatrics",0.94,"Residency, Pediatrics, UCLA"],
+      ["Board Certification","∅ — left blank",0.38,"Quote failed verification — document scan illegible"],
+      ["Malpractice Insurance","Active — $1M / $3M",0.91,"Coverage $1,000,000 / $3,000,000 — Active"],
+      ["Work History","2020–Present, verified",0.93,"Employment verified 2020–present"],
+      ["Sanctions Check","Clear — no exclusions",0.95,"No OIG / SAM exclusions found"]
+    ]
+  },
+  {
+    id:"pkt-rivera", name:"Dr. Luis Rivera", short:"LR", color:"#9A3412", type:"Conflicting documents — escalated", desc:"Cardiology • FL • Two papers, two different dates",
+    say:"Here two papers said two different dates. The cheap AI got confused, so the boss sent just that one field to the smart AI. The smart AI picked the better paper — but only 78% sure, so a human still checks it. The agent asks for help. It does not act big.",
+    final:"IN_REVIEW", finalClass:"b-review", needsMFA:false, cost:"$0.00184", escalated:"License Expiry",
+    fields:[
+      ["Full Name","Luis Rivera, MD",0.95,"Luis Rivera, MD — Cardiology"],
+      ["NPI","1740293847",0.95,"NPI: 1740293847"],
+      ["DEA","FR3847561",0.95,"DEA Registration FR3847561"],
+      ["State License","FL-ME129384",0.95,"Florida License FL-ME129384"],
+      ["License Expiry","2027-06-30 — review",0.78,"Renewal letter: Expires 2027-06-30 (preferred over wallet card 2027-03-15)"],
+      ["Medical School","University of Miami Miller School",0.95,"University of Miami Miller School of Medicine, MD 2012"],
+      ["Residency","Jackson Memorial — Cardiology",0.95,"Fellowship, Cardiology, Jackson Memorial"],
+      ["Board Certification","ABIM — Cardiology",0.95,"Board Certified, Cardiovascular Disease"],
+      ["Malpractice Insurance","Active — $1M / $3M",0.95,"Coverage $1,000,000 / $3,000,000 — Active"],
+      ["Work History","2016–Present, verified",0.95,"Continuous employment verified 2016–present"],
+      ["Sanctions Check","Clear — no exclusions",0.95,"No OIG / SAM exclusions found"]
+    ]
+  }
+];
+
+var state = { statuses:{}, activeId:null, running:false, chenSubmitted:false, doneCount:0 };
+PACKETS.forEach(function(p){ state.statuses[p.id]="QUEUED"; });
+
+function el(id){ return document.getElementById(id); }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
+function log(html){
+  var box = el("auditLog");
+  if(box.querySelector(".dim") && box.textContent.indexOf("will stream")!==-1) box.innerHTML="";
+  var time = new Date().toLocaleTimeString([], {hour12:false});
+  box.innerHTML += "\n<span class=\"dim\">["+time+"]</span> "+html;
+  box.scrollTop = box.scrollHeight;
+}
+function renderQueue(){
+  var html="";
+  PACKETS.forEach(function(p){
+    var st = state.statuses[p.id];
+    var badgeClass = "b-wait", label = st;
+    if(st==="SUBMITTED") badgeClass="b-pass";
+    else if(st==="NEEDS_INFO") badgeClass="b-block";
+    else if(st==="IN_REVIEW") badgeClass="b-review";
+    else if(st==="PAUSED_FOR_HUMAN") {badgeClass="b-pause"; label="⏸ PAUSED";}
+    else if(st==="VERIFYING"||st==="RUNNING") {badgeClass="b-run"; label="● VERIFYING";}
+    var active = state.activeId===p.id ? " active":"";
+    html += '<button class="packet'+active+'" onclick="showPacket(\''+p.id+'\')"><span class="avatar" style="background:'+p.color+'">'+p.short+'</span><span class="p-meta"><b>'+p.name+'</b><p>'+p.type+'<br>'+p.desc+'</p></span><span class="badge '+badgeClass+'">'+label+'</span></button>';
+  });
+  el("packetList").innerHTML = html;
+  el("queueCount").textContent = state.doneCount+" / 4 done";
+}
+function confClass(v){ if(v<0.5) return "bar blank"; if(v<0.9) return "bar low"; return "bar"; }
+function fieldHTML(p){
+  var html='<div class="fields">';
+  p.fields.forEach(function(f){
+    var isBlank = f[1].indexOf("∅")===0;
+    var isExpired = f[1].indexOf("EXPIRED")!==-1;
+    var pct = Math.round(f[2]*100);
+    html += '<div class="field"><span class="field-name">'+f[0]+(isBlank?' <span style="color:#DC2626">∅ abstained</span>':'')+(isExpired?' <span style="color:#DC2626">⛔</span>':'')+'</span><span class="conf"><span class="'+confClass(f[2])+'"><i style="width:'+pct+'%"></i></span>'+f[2].toFixed(2)+'</span><span style="font-size:14px;color:var(--ink)">'+f[1]+'</span><span class="field-quote">'+f[3]+'</span></div>';
+  });
+  html += '</div>';
+  if(p.hardFail) html += '<div style="margin-top:12px;background:var(--red-bg);border:1px solid #FCA5A5;border-radius:12px;padding:12px 14px;font-size:14px"><strong>Hard rule failure — decision order #1:</strong> '+p.hardFail+'</div>';
+  if(p.escalated) html += '<div style="margin-top:12px;background:var(--amber-bg);border-radius:12px;padding:12px 14px;font-size:14px"><strong>Escalated 1 field to Opus tier:</strong> '+p.escalated+' conflicted across documents (2027-03-15 vs 2027-06-30). Expensive model resolved to the renewal letter — 0.78, so still human review per the gate.</div>';
+  html += '<div class="say"><small>🎤 Say this</small><p>“'+p.say+'”</p></div>';
+  return html;
+}
+function detailHTML(p, stageIdx){
+  var stages=["Received","Verifying","Rules","Gate","Decision"];
+  var track='<div class="stage-track">';
+  stages.forEach(function(s,i){
+    var cls = i<stageIdx ? "stage done" : (i===stageIdx ? "stage on" : "stage");
+    track += '<span class="'+cls+'">'+s+'</span>';
+  });
+  track += '</div>';
+  return '<div class="detail-body"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div><h3 style="margin:0;font-size:22px">'+p.name+'</h3><p style="margin:4px 0 0;color:var(--muted);font-size:14px">'+p.type+' • Cost so far '+p.cost+' • Fingerprint <code style="font-family:JetBrains Mono,monospace;font-size:12px">'+p.id+'-a3f9c1</code></p></div><span class="badge '+p.finalClass+'" style="font-size:12px;padding:8px 10px">'+state.statuses[p.id]+'</span></div>'+track+fieldHTML(p)+'<div id="mfaSlot"></div></div>';
+}
+function showPacket(id){
+  var p = PACKETS.find(function(x){return x.id===id;});
+  state.activeId=id;
+  renderQueue();
+  // Only render detail if it has been run or is running; otherwise show preview
+  if(state.statuses[id]==="QUEUED"){
+    el("detailTitle").textContent = p.name;
+    el("detailStatus").textContent = p.type;
+    el("detailBody").innerHTML = '<div class="detail-body"><h3 style="margin:0 0 6px;font-size:20px">'+p.name+'</h3><p style="margin:0;color:var(--muted)">'+p.desc+'</p><div class="say"><small>🎤 Say this when it runs</small><p>“'+p.say+'”</p></div><p style="margin:14px 0 0;font-size:14px;color:var(--muted)">Press Run Full Demo to watch this packet process live.</p></div>';
+    return;
+  }
+  el("detailTitle").textContent = p.name;
+  el("detailStatus").textContent = state.statuses[p.id];
+  el("detailBody").innerHTML = detailHTML(p, 5);
+  if(p.needsMFA && state.statuses[p.id]==="PAUSED_FOR_HUMAN") renderMFA(p);
+}
+function renderMFA(p){
+  var slot = el("mfaSlot"); if(!slot) return;
+  slot.innerHTML = '<div class="mfa"><h3>⏸ Paused for a human — portal MFA</h3><p>The packet is perfect, but submitting needs a portal login code. State is saved. Enter the 6-digit code to resume exactly where it left off. Demo code is <strong>123456</strong>.</p><div class="mfa-row"><input id="mfaInput" inputmode="numeric" maxlength="6" placeholder="123456" value=""><button class="btn btn-primary" onclick="submitMFA()">Resume & Submit →</button><button class="btn" onclick="document.getElementById(\'mfaInput\').value=\'123456\'">Fill 123456</button></div><p id="mfaErr" style="margin:10px 0 0;color:#991B1B;font-weight:700;font-size:13px"></p></div>';
+  var inp = el("mfaInput"); if(inp) inp.focus();
+}
+async function submitMFA(){
+  var v = (el("mfaInput")||{}).value || "";
+  if(v!=="123456"){ el("mfaErr").textContent="That code doesn’t match — try 123456 for the demo."; log('<span class="warn">MFA rejected — code must be exactly 6 digits and match.</span>'); return; }
+  log('<span class="ok">MFA accepted (••••••) → resuming from PAUSED_FOR_HUMAN</span>');
+  await sleep(500);
+  state.statuses["pkt-chen"]="SUBMITTED"; state.chenSubmitted=true; state.doneCount++;
+  el("dupBtn").disabled=false;
+  log('<span class="ok">pkt-chen → READY → SUBMITTED ✓ idempotency key recorded</span>');
+  renderQueue(); showPacket("pkt-chen");
+  // Continue runAll if in sequence
+  if(window._runAllResolve){ var r=window._runAllResolve; window._runAllResolve=null; r(); }
+}
+async function runPacket(p, isSequence){
+  state.activeId=p.id; state.statuses[p.id]="VERIFYING"; renderQueue();
+  el("detailTitle").textContent=p.name; el("detailStatus").textContent="VERIFYING";
+  el("detailBody").innerHTML = detailHTML(p,1);
+  log('<strong>'+p.name+'</strong> → RECEIVED • fingerprint '+p.id+'-a3f9c1');
+  await sleep(650);
+  log('Cheap model extracted 11 fields • quote-or-abstain check running…');
+  await sleep(650);
+  // Special logs
+  if(p.id==="pkt-nair") log('<span class="warn">Quote verification FAILED on 2 fields → confidence capped at 0.50 → gate: &lt;0.70 = blank / abstain</span>');
+  if(p.id==="pkt-rivera") log('<span class="warn">Conflict detected: License Expiry 2027-03-15 vs 2027-06-30 → escalating 1 field to Opus tier…</span>');
+  if(p.id==="pkt-rivera") await sleep(700);
+  if(p.id==="pkt-rivera") log('Opus tier resolved to renewal letter • confidence 0.78 → gate: 0.70–0.89 = human review');
+  if(p.id==="pkt-okafor") log('Deterministic rules: NPI ✓ • DEA ✓ • <span class="err">License expiry 2025-09-30 — EXPIRED ✗</span>');
+  else log('Deterministic rules: NPI check-digit ✓ • Expiry ✓ • Sanctions ✓');
+  await sleep(600);
+  el("detailBody").innerHTML = detailHTML(p,4);
+  // Decision order
+  if(p.hardFail){
+    state.statuses[p.id]="NEEDS_INFO"; state.doneCount++;
+    log('<span class="err">Decision #1 — hard rule failure → NEEDS_INFO. Packet stopped. Model confidence ignored.</span>');
+  } else if(p.needsMFA){
+    state.statuses[p.id]="PAUSED_FOR_HUMAN";
+    log('<span class="warn">Decision #3 — portal check required → PAUSED_FOR_HUMAN. Waiting for human code…</span>');
+    renderQueue(); el("detailBody").innerHTML = detailHTML(p,4); renderMFA(p);
+    if(isSequence){
+      await new Promise(function(res){ window._runAllResolve=res; });
+    }
+    return;
+  } else {
+    state.statuses[p.id]="IN_REVIEW"; state.doneCount++;
+    var reason = p.id==="pkt-nair" ? "2 fields abstained (blank)" : "1 escalated field at 0.78";
+    log('Decision #2 — review list non-empty ('+reason+') → <span class="warn">IN_REVIEW</span>');
+  }
+  renderQueue(); showPacket(p.id);
+  await sleep(500);
+}
+async function runAll(){
+  if(state.running) return;
+  resetDemo(true);
+  state.running=true; el("runAllBtn").disabled=true; el("runAllBtn").textContent="● Running… watch each packet";
+  log('<strong>▶ DEMO START</strong> — 4 packets, synthetic data');
+  for(var i=0;i<PACKETS.length;i++){ await runPacket(PACKETS[i], true); }
+  log('<span class="ok">▶ DEMO COMPLETE</span> — 1 submitted, 1 hard-stopped, 2 to human review. Exactly as designed.');
+  el("runAllBtn").disabled=false; el("runAllBtn").textContent="▶ Run Full Demo — 90 seconds";
+  state.running=false;
+  runEval(true);
+}
+function tryDuplicate(){
+  if(!state.chenSubmitted) return;
+  el("dupResult").textContent="⛔ Duplicate blocked = true — fingerprint pkt-chen-a3f9c1 already submitted.";
+  el("dupResult").style.color="#991B1B";
+  log('<span class="err">Duplicate submit attempt on pkt-chen → BLOCKED (idempotency key already seen)</span>');
+}
+async function runEval(silent){
+  el("evalScore").textContent="… / 44";
+  if(!silent) log('Running eval against golden.json — 4 packets × 11 fields…');
+  await sleep(700);
+  var n=0;
+  var iv=setInterval(function(){ n+=4; if(n>=44){n=44;clearInterval(iv);} el("evalScore").textContent=n+" / 44"; },90);
+  await sleep(1100);
+  el("evalText").textContent="44 of 44 field outcomes match the answer key — including the 2 intentional blanks and the 1 escalated conflict. Graded on finished packets, not on how cheap the calls were.";
+  el("evalCost").textContent="$0.00271 total";
+  el("evalEsc").textContent="1 field only";
+  el("evalDup").textContent="1 blocked ✓";
+  log('<span class="ok">EVAL: 44/44 correct • total cost $0.00271 • 1 escalation • 1 duplicate blocked</span>');
+}
+function resetDemo(keepLog){
+  state={statuses:{},activeId:null,running:false,chenSubmitted:false,doneCount:0};
+  PACKETS.forEach(function(p){ state.statuses[p.id]="QUEUED"; });
+  window._runAllResolve=null;
+  renderQueue();
+  el("detailTitle").textContent="Live Run"; el("detailStatus").textContent="Ready";
+  el("detailBody").innerHTML='<div class="detail-empty"><strong>Press “Run Full Demo” to start</strong>Packets will process one by one here — fields, confidence, quotes, and the final decision. Packet 1 will pause and ask you for the human code.</div>';
+  el("detailBody").className="";
+  el("dupBtn").disabled=true; el("dupResult").textContent="";
+  el("evalScore").textContent="— / 44";
+  if(!keepLog) el("auditLog").innerHTML='<span class="dim">// Audit log will stream here as the agent works.\n // Every extraction, rule check, escalation, and pause is written down.</span>';
+}
+renderQueue();
+</script>
+</body>
+</html>
