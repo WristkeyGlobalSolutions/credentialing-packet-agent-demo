@@ -104,6 +104,22 @@
   /* Log */
   .log{background:#0B120E;color:#D1FAE5;border-radius:14px;padding:14px;font-family:"JetBrains Mono",monospace;font-size:12.5px;line-height:1.7;max-height:320px;overflow:auto;white-space:pre-wrap;word-break:break-word}
   .log .dim{color:#6B7D70}.log .warn{color:#FBBF24}.log .err{color:#FCA5A5}.log .ok{color:#6EE7B7}
+  /* Mode toggle */
+  .mode-toggle{display:inline-flex;background:var(--surface2);border:1px solid var(--line);border-radius:999px;padding:4px;gap:4px}
+  .mode-toggle button{border:0;background:transparent;padding:10px 18px;border-radius:999px;font-weight:800;font-size:14px;color:var(--muted)}
+  .mode-toggle button.on{background:var(--ink);color:#fff}
+  /* Scoreboard (agent-only) */
+  .scoreboard{display:none;grid-template-columns:repeat(4,1fr);gap:10px;margin:14px 0 0}
+  .scoreboard.show{display:grid}
+  @media(max-width:640px){.scoreboard{grid-template-columns:1fr 1fr}}
+  /* Determination panel (agent-only) */
+  .determination{margin-top:16px;border-radius:12px;padding:14px 16px;border:1px solid var(--line)}
+  .determination small{font-size:11px;letter-spacing:.08em;text-transform:uppercase;font-weight:800}
+  .determination p{margin:6px 0 0;font-size:14.5px;line-height:1.55;font-weight:600}
+  .determination ul{margin:8px 0 0;padding-left:18px;font-size:13.5px;color:var(--muted);line-height:1.6}
+  .det-ok{background:var(--green-bg)} .det-ok small{color:var(--green)}
+  .det-bad{background:var(--red-bg)} .det-bad small{color:var(--red)}
+  .det-warn{background:var(--amber-bg)} .det-warn small{color:var(--amber)}
   /* Eval */
   .eval-grid{display:grid;grid-template-columns:1.2fr .8fr;gap:16px;margin-top:16px}
   @media(max-width:760px){.eval-grid{grid-template-columns:1fr}}
@@ -120,7 +136,7 @@
 <div class="wrap">
   <div class="top-badge"><span class="dot"></span> Live Demo • Runs in your browser • Synthetic data only</div>
   <h1>Credentialing Packet Agent<br><span>Rules beat AI.</span></h1>
-  <p class="lead">A small agent that checks doctor credentialing packets. It reads 11 fields, <strong>proves every answer with a verbatim quote</strong>, lets hard rules override the model, and pauses for a human where a human belongs. No typing in a terminal — just press Run.</p>
+  <p class="lead" id="leadText">A small agent that checks doctor credentialing packets. It reads 11 fields, <strong>proves every answer with a verbatim quote</strong>, lets hard rules override the model, and pauses for a human where a human belongs. No typing in a terminal — just press Run.</p>
 
   <div class="stats">
     <div class="stat"><b>4 packets</b><span>Test cases</span></div>
@@ -130,17 +146,28 @@
   </div>
 
   <div class="controls">
+    <div class="mode-toggle" role="group" aria-label="Operating mode">
+      <button id="modeAssisted" class="on" onclick="setMode('assisted')">Assisted</button>
+      <button id="modeAgentOnly" onclick="setMode('agent-only')">Agent-Only</button>
+    </div>
     <button class="btn btn-primary" id="runAllBtn" onclick="runAll()">▶ Run Full Demo — 90 seconds</button>
     <button class="btn" id="evalBtn" onclick="runEval()">Run Eval Only</button>
     <button class="btn" onclick="resetDemo()">↺ Reset</button>
   </div>
   <p class="hint">Practice mode: run it, read the yellow “Say this” box out loud for each packet. That’s the whole demo.</p>
 
+  <div class="scoreboard" id="scoreboard">
+    <div class="stat"><b id="sbDet">0 / 4</b><span>Determinations</span></div>
+    <div class="stat"><b>0</b><span>Pending human</span></div>
+    <div class="stat"><b id="sbSub">0 / 4</b><span>Submitted autonomously</span></div>
+    <div class="stat"><b id="sbCost">—</b><span>Cost / determination</span></div>
+  </div>
+
   <div class="pipeline" aria-label="How the agent works">
     <div class="pipe-step"><small>01 • Read</small><p>Cheap model extracts all 11 fields first</p></div>
     <div class="pipe-step"><small>02 • Prove</small><p>Quote-or-abstain: quote must match verbatim or confidence caps at 0.50</p></div>
     <div class="pipe-step"><small>03 • Check</small><p>Deterministic rules: NPI math, expiry dates, conflicts — no AI</p></div>
-    <div class="pipe-step"><small>04 • Gate</small><p>90+ auto • 70–89 human review • &lt;70 left blank</p></div>
+    <div class="pipe-step"><small>04 • Gate</small><p id="gateStep">90+ auto • 70–89 human review • &lt;70 left blank</p></div>
     <div class="pipe-step"><small>05 • Escalate</small><p>Only problem fields go to the expensive model</p></div>
   </div>
 
@@ -150,7 +177,7 @@
       <div class="card-head"><h2>Packet Queue</h2><span id="queueCount">0 / 4 done</span></div>
       <div id="packetList"></div>
       <div style="padding:14px 18px;border-top:1px solid var(--line)">
-        <p style="margin:0;font-size:13px;color:var(--muted);line-height:1.5"><strong style="color:var(--ink)">Remember the order:</strong> Good one submits, expired one stops, messy one stays blank, fight goes to a human.</p>
+        <p id="queueNote" style="margin:0;font-size:13px;color:var(--muted);line-height:1.5"><strong style="color:var(--ink)">Remember the order:</strong> Good one submits, expired one stops, messy one stays blank, fight goes to a human.</p>
       </div>
     </section>
 
@@ -189,6 +216,11 @@
         <div style="background:var(--surface2);border-radius:12px;padding:12px"><b id="evalEsc">—</b><div style="font-size:12px;color:var(--muted);font-weight:700">ESCALATIONS</div></div>
         <div style="background:var(--surface2);border-radius:12px;padding:12px"><b id="evalDup">—</b><div style="font-size:12px;color:var(--muted);font-weight:700">DUPLICATES BLOCKED</div></div>
       </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px">
+        <div style="background:var(--teal-light);border-radius:12px;padding:12px"><b id="evalDet">—</b><div style="font-size:12px;color:var(--muted);font-weight:700">AGENT-ONLY DETERMINATIONS</div></div>
+        <div style="background:var(--teal-light);border-radius:12px;padding:12px"><b id="evalAdj">—</b><div style="font-size:12px;color:var(--muted);font-weight:700">ADJUDICATION CORRECT</div></div>
+        <div style="background:var(--teal-light);border-radius:12px;padding:12px"><b id="evalVer">—</b><div style="font-size:12px;color:var(--muted);font-weight:700">VERIFIER AGREEMENT</div></div>
+      </div>
     </section>
 
     <section class="card" style="padding:20px">
@@ -197,7 +229,7 @@
       <button class="btn" id="dupBtn" onclick="tryDuplicate()" disabled style="margin-top:14px">Try submitting Chen again</button>
       <p id="dupResult" style="margin:10px 0 0;font-size:14px;font-weight:700"></p>
       <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--line)">
-        <p style="margin:0;font-size:13px;color:var(--muted)"><strong style="color:var(--ink)">State machine:</strong> RECEIVED → VERIFYING → PAUSED / IN_REVIEW / NEEDS_INFO / READY → SUBMITTED. Illegal jumps crash on purpose. No shortcuts.</p>
+        <p id="smNote" style="margin:0;font-size:13px;color:var(--muted)"><strong style="color:var(--ink)">State machine:</strong> RECEIVED → VERIFYING → PAUSED / IN_REVIEW / NEEDS_INFO / READY → SUBMITTED. Illegal jumps crash on purpose. No shortcuts.</p>
       </div>
     </section>
   </div>
@@ -205,7 +237,7 @@
   <div class="principles">
     <div class="pr"><b>🔒 Rules outrank AI, always</b><p>An expired license stops the packet even at 95% model confidence. A date is a date — deterministic code decides, not the model.</p></div>
     <div class="pr"><b>∅ Blank is safer than a guess</b><p>If the quote doesn’t verify or confidence is &lt;70, the field stays empty and goes to a human. The agent abstains on purpose.</p></div>
-    <div class="pr"><b>⏸ Pause is a feature</b><p>Portal login needs a human code. The agent parks with state saved and resumes exactly where it left off — it never logs in alone.</p></div>
+    <div class="pr"><b id="pr3Title">⏸ Pause is a feature</b><p id="pr3Text">Portal login needs a human code. The agent parks with state saved and resumes exactly where it left off — it never logs in alone.</p></div>
   </div>
 
   <p class="footer">
@@ -219,6 +251,11 @@ var PACKETS = [
     id:"pkt-chen", name:"Dr. Maya Chen", short:"MC", color:"#0E7569", type:"Clean packet", desc:"Internal Medicine • NY • Everything in order",
     say:"This packet is perfect. Every answer is a green check. Then it stops and waits for a human to type a code — because a robot should not log into a portal alone. Code goes in, it finishes. And it can never send the same packet twice.",
     final:"SUBMITTED", finalClass:"b-pass", needsMFA:true, cost:"$0.00029",
+    ao:{ final:"SUBMITTED", cost:"$0.00041",
+      say:"Same packet, no human anywhere. The agent verified its own work with a second, independent pass, cleared the portal check through the machine channel, and submitted — once.",
+      detClass:"det-ok", detTitle:"⚖ Determination — Approved",
+      detBody:"Every field determined and verifier-agreed. Portal verification completed through the portal's machine channel — no human code, no pause.",
+      detLines:["Verifier pass: 11/11 fields independently re-derived to the same value","Portal checkpoint: machine-channel attestation ✓","Pending human: 0"] },
     fields:[
       ["Full Name","Maya Chen, MD",0.95,"Maya Chen, MD — Internal Medicine"],
       ["NPI","1234567893",0.95,"NPI: 1234567893"],
@@ -237,6 +274,11 @@ var PACKETS = [
     id:"pkt-okafor", name:"Dr. James Okafor", short:"JO", color:"#991B1B", type:"Expired license — hard stop", desc:"Family Medicine • NJ • AI is sure, rules say no",
     say:"This one is my favorite. The AI was 95% sure about everything. But the license is expired, so the rules stopped the whole packet. Rules beat AI. A date is a date.",
     final:"NEEDS_INFO", finalClass:"b-block", needsMFA:false, cost:"$0.00027", hardFail:"State License expired 2025-09-30 — deterministic check failed. Model confidence ignored.",
+    ao:{ final:"RETURNED", cost:"$0.00027",
+      say:"The AI was still 95% sure — and the agent still returned the packet. Agent-only doesn't soften the rules. The determination is made by the machine instead of being routed to a person.",
+      detClass:"det-bad", detTitle:"⚖ Determination — Returned (hard rule)",
+      detBody:"License expired 2025-09-30. The determination is RETURNED with the deficiency named — made at 95% extraction confidence, because rules outrank the model in both modes.",
+      detLines:["Deficiency named: License Expiry — expired 2025-09-30","Verifier pass: 11/11 agreed — the evidence was clear; the rule still stopped it","Pending human: 0"] },
     fields:[
       ["Full Name","James Okafor, MD",0.95,"James Okafor, MD — Family Medicine"],
       ["NPI","1987654321",0.95,"NPI: 1987654321"],
@@ -255,6 +297,11 @@ var PACKETS = [
     id:"pkt-nair", name:"Dr. Priya Nair", short:"PN", color:"#92400E", type:"Messy paperwork — abstains", desc:"Pediatrics • CA • Two fields unreadable, left blank",
     say:"Here the paperwork was messy. Two answers were not clear, so the agent left them blank on purpose. It does not guess. Blank is safe. A wrong guess is not. A human gets those two.",
     final:"IN_REVIEW", finalClass:"b-review", needsMFA:false, cost:"$0.00031",
+    ao:{ final:"NEEDS_INFO", cost:"$0.00043",
+      say:"Messy paperwork, and no human to rescue it — the agent still doesn't guess. It runs a second pass, confirms the evidence isn't there, and returns the packet with exactly what's missing.",
+      detClass:"det-warn", detTitle:"⚖ Determination — Needs-Info",
+      detBody:"Two fields have no quotable evidence. A second, independent pass confirmed it — so the determination is NEEDS_INFO, returned with the deficiencies named. The agent decided; it did not guess.",
+      detLines:["Deficient: DEA — no source mention anywhere in the packet","Deficient: Board Certification — source illegible, quote refused","Verifier pass: confirms no quotable evidence on both fields","Pending human: 0"] },
     fields:[
       ["Full Name","Priya Nair, MD",0.94,"Priya Nair, MD — Pediatrics"],
       ["NPI","1659872340",0.93,"NPI: 1659872340"],
@@ -273,6 +320,11 @@ var PACKETS = [
     id:"pkt-rivera", name:"Dr. Luis Rivera", short:"LR", color:"#9A3412", type:"Conflicting documents — escalated", desc:"Cardiology • FL • Two papers, two different dates",
     say:"Here two papers said two different dates. The cheap AI got confused, so the boss sent just that one field to the smart AI. The smart AI picked the better paper — but only 78% sure, so a human still checks it. The agent asks for help. It does not act big.",
     final:"IN_REVIEW", finalClass:"b-review", needsMFA:false, cost:"$0.00184", escalated:"License Expiry",
+    ao:{ final:"SUBMITTED", cost:"$0.00196",
+      say:"Two papers, two dates — and no human to break the tie. So the agent adjudicates: the primary source wins, the reasoning is written down, a second pass corroborates, and it submits. The disagreement isn't hidden; it's in the audit log.",
+      detClass:"det-ok", detTitle:"⚖ Determination — Approved (adjudicated)",
+      detBody:"The conflict was adjudicated on the evidence: the renewal letter is the primary source, so 2027-06-30 wins over the wallet card's 2027-03-15. The verifier pass corroborated, and the packet submitted. The losing value stays in the audit record as dissent.",
+      detLines:["Adjudication: renewal letter (primary source) outranks wallet card","Verifier pass: corroborated the adjudicated value","Dissent preserved: 2027-03-15 recorded in the audit log","Pending human: 0"] },
     fields:[
       ["Full Name","Luis Rivera, MD",0.95,"Luis Rivera, MD — Cardiology"],
       ["NPI","1740293847",0.95,"NPI: 1740293847"],
@@ -289,8 +341,53 @@ var PACKETS = [
   }
 ];
 
-var state = { statuses:{}, activeId:null, running:false, chenSubmitted:false, doneCount:0 };
+var state = { statuses:{}, activeId:null, running:false, chenSubmitted:false, doneCount:0,
+  mode:"assisted", detCount:0, subCount:0, detCostSum:0 };
 PACKETS.forEach(function(p){ state.statuses[p.id]="QUEUED"; });
+
+var MODE_TEXT = {
+  assisted: {
+    lead:'A small agent that checks doctor credentialing packets. It reads 11 fields, <strong>proves every answer with a verbatim quote</strong>, lets hard rules override the model, and pauses for a human where a human belongs. No typing in a terminal — just press Run.',
+    gate:'90+ auto • 70–89 human review • &lt;70 left blank',
+    note:'<strong style="color:var(--ink)">Remember the order:</strong> Good one submits, expired one stops, messy one stays blank, fight goes to a human.',
+    pr3Title:'⏸ Pause is a feature',
+    pr3Text:'Portal login needs a human code. The agent parks with state saved and resumes exactly where it left off — it never logs in alone.',
+    sm:'<strong style="color:var(--ink)">State machine:</strong> RECEIVED → VERIFYING → PAUSED / IN_REVIEW / NEEDS_INFO / READY → SUBMITTED. Illegal jumps crash on purpose. No shortcuts.',
+    empty:'Packets will process one by one here — fields, confidence, quotes, and the final decision. Packet 1 will pause and ask you for the human code.'
+  },
+  "agent-only": {
+    lead:'A small agent that checks doctor credentialing packets. It reads 11 fields, <strong>proves every answer with a verbatim quote</strong>, lets hard rules override the model, and — in agent-only mode — makes every final call itself: determinations, not human handoffs. No typing in a terminal — just press Run.',
+    gate:'90+ auto • 70–89 verifier pass • &lt;70 needs-info determination',
+    note:'<strong style="color:var(--ink)">Remember the order:</strong> Good one submits itself, expired one gets returned, messy one comes back needs-info, fight gets adjudicated.',
+    pr3Title:'⚖ Determinations, not queues',
+    pr3Text:'In agent-only mode nothing waits for a person. Every packet closes decided — approved, returned, or needs-info — with the reasoning in the audit log.',
+    sm:'<strong style="color:var(--ink)">State machine:</strong> RECEIVED → VERIFYING → PORTAL_CHECK / DETERMINED_RETURNED / DETERMINED_NEEDS_INFO / READY → SUBMITTED. Illegal jumps crash on purpose. No shortcuts.',
+    empty:'Packets will process one by one here — fields, confidence, quotes, and the determination each one closes with. No packet waits for a human.'
+  }
+};
+function setMode(m){
+  if(state.running || state.mode===m) return;
+  state.mode=m;
+  el("modeAssisted").className = m==="assisted" ? "on" : "";
+  el("modeAgentOnly").className = m==="agent-only" ? "on" : "";
+  var t = MODE_TEXT[m];
+  el("leadText").innerHTML = t.lead;
+  el("gateStep").innerHTML = t.gate;
+  el("queueNote").innerHTML = t.note;
+  el("pr3Title").textContent = t.pr3Title;
+  el("pr3Text").textContent = t.pr3Text;
+  el("smNote").innerHTML = t.sm;
+  resetDemo();
+  log('<strong>Mode: '+(m==="agent-only"?"AGENT-ONLY":"ASSISTED")+'</strong> — '+(m==="agent-only"?"every packet will close with a machine determination":"the bands end at a human, as before"));
+}
+function renderScoreboard(){
+  var show = state.mode==="agent-only";
+  el("scoreboard").className = show ? "scoreboard show" : "scoreboard";
+  if(!show) return;
+  el("sbDet").textContent = state.detCount+" / 4";
+  el("sbSub").textContent = state.subCount+" / 4";
+  el("sbCost").textContent = state.detCount>0 ? "$"+(state.detCostSum/state.detCount).toFixed(5) : "—";
+}
 
 function el(id){ return document.getElementById(id); }
 function sleep(ms){ return new Promise(function(r){ setTimeout(r,ms); }); }
@@ -307,7 +404,8 @@ function renderQueue(){
     var st = state.statuses[p.id];
     var badgeClass = "b-wait", label = st;
     if(st==="SUBMITTED") badgeClass="b-pass";
-    else if(st==="NEEDS_INFO") badgeClass="b-block";
+    else if(st==="RETURNED") badgeClass="b-block";
+    else if(st==="NEEDS_INFO") badgeClass = state.mode==="agent-only" ? "b-review" : "b-block";
     else if(st==="IN_REVIEW") badgeClass="b-review";
     else if(st==="PAUSED_FOR_HUMAN") {badgeClass="b-pause"; label="⏸ PAUSED";}
     else if(st==="VERIFYING"||st==="RUNNING") {badgeClass="b-run"; label="● VERIFYING";}
@@ -327,10 +425,16 @@ function fieldHTML(p){
     html += '<div class="field"><span class="field-name">'+f[0]+(isBlank?' <span style="color:#DC2626">∅ abstained</span>':'')+(isExpired?' <span style="color:#DC2626">⛔</span>':'')+'</span><span class="conf"><span class="'+confClass(f[2])+'"><i style="width:'+pct+'%"></i></span>'+f[2].toFixed(2)+'</span><span style="font-size:14px;color:var(--ink)">'+f[1]+'</span><span class="field-quote">'+f[3]+'</span></div>';
   });
   html += '</div>';
-  if(p.hardFail) html += '<div style="margin-top:12px;background:var(--red-bg);border:1px solid #FCA5A5;border-radius:12px;padding:12px 14px;font-size:14px"><strong>Hard rule failure — decision order #1:</strong> '+p.hardFail+'</div>';
-  if(p.escalated) html += '<div style="margin-top:12px;background:var(--amber-bg);border-radius:12px;padding:12px 14px;font-size:14px"><strong>Escalated 1 field to Opus tier:</strong> '+p.escalated+' conflicted across documents (2027-03-15 vs 2027-06-30). Expensive model resolved to the renewal letter — 0.78, so still human review per the gate.</div>';
-  html += '<div class="say"><small>🎤 Say this</small><p>“'+p.say+'”</p></div>';
+  if(p.hardFail && state.mode==="assisted") html += '<div style="margin-top:12px;background:var(--red-bg);border:1px solid #FCA5A5;border-radius:12px;padding:12px 14px;font-size:14px"><strong>Hard rule failure — decision order #1:</strong> '+p.hardFail+'</div>';
+  if(p.escalated && state.mode==="assisted") html += '<div style="margin-top:12px;background:var(--amber-bg);border-radius:12px;padding:12px 14px;font-size:14px"><strong>Escalated 1 field to Opus tier:</strong> '+p.escalated+' conflicted across documents (2027-03-15 vs 2027-06-30). Expensive model resolved to the renewal letter — 0.78, so still human review per the gate.</div>';
+  var sayText = (state.mode==="agent-only" && p.ao) ? p.ao.say : p.say;
+  html += '<div class="say"><small>🎤 Say this</small><p>“'+sayText+'”</p></div>';
   return html;
+}
+function determinationHTML(p){
+  if(state.mode!=="agent-only" || !p.ao) return "";
+  var items = p.ao.detLines.map(function(l){ return "<li>"+l+"</li>"; }).join("");
+  return '<div class="determination '+p.ao.detClass+'"><small>'+p.ao.detTitle+'</small><p>'+p.ao.detBody+'</p><ul>'+items+'</ul></div>';
 }
 function detailHTML(p, stageIdx){
   var stages=["Received","Verifying","Rules","Gate","Decision"];
@@ -340,7 +444,9 @@ function detailHTML(p, stageIdx){
     track += '<span class="'+cls+'">'+s+'</span>';
   });
   track += '</div>';
-  return '<div class="detail-body"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div><h3 style="margin:0;font-size:22px">'+p.name+'</h3><p style="margin:4px 0 0;color:var(--muted);font-size:14px">'+p.type+' • Cost so far '+p.cost+' • Fingerprint <code style="font-family:JetBrains Mono,monospace;font-size:12px">'+p.id+'-a3f9c1</code></p></div><span class="badge '+p.finalClass+'" style="font-size:12px;padding:8px 10px">'+state.statuses[p.id]+'</span></div>'+track+fieldHTML(p)+'<div id="mfaSlot"></div></div>';
+  var cost = state.mode==="agent-only" ? p.ao.cost : p.cost;
+  var panel = stageIdx>=4 ? determinationHTML(p) : "";
+  return '<div class="detail-body"><div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:flex-start"><div><h3 style="margin:0;font-size:22px">'+p.name+'</h3><p style="margin:4px 0 0;color:var(--muted);font-size:14px">'+p.type+' • Cost so far '+cost+' • Fingerprint <code style="font-family:JetBrains Mono,monospace;font-size:12px">'+p.id+'-a3f9c1</code></p></div><span class="badge '+p.finalClass+'" style="font-size:12px;padding:8px 10px">'+state.statuses[p.id]+'</span></div>'+track+fieldHTML(p)+panel+'<div id="mfaSlot"></div></div>';
 }
 function showPacket(id){
   var p = PACKETS.find(function(x){return x.id===id;});
@@ -350,7 +456,8 @@ function showPacket(id){
   if(state.statuses[id]==="QUEUED"){
     el("detailTitle").textContent = p.name;
     el("detailStatus").textContent = p.type;
-    el("detailBody").innerHTML = '<div class="detail-body"><h3 style="margin:0 0 6px;font-size:20px">'+p.name+'</h3><p style="margin:0;color:var(--muted)">'+p.desc+'</p><div class="say"><small>🎤 Say this when it runs</small><p>“'+p.say+'”</p></div><p style="margin:14px 0 0;font-size:14px;color:var(--muted)">Press Run Full Demo to watch this packet process live.</p></div>';
+    var previewSay = (state.mode==="agent-only" && p.ao) ? p.ao.say : p.say;
+    el("detailBody").innerHTML = '<div class="detail-body"><h3 style="margin:0 0 6px;font-size:20px">'+p.name+'</h3><p style="margin:0;color:var(--muted)">'+p.desc+'</p><div class="say"><small>🎤 Say this when it runs</small><p>“'+previewSay+'”</p></div><p style="margin:14px 0 0;font-size:14px;color:var(--muted)">Press Run Full Demo to watch this packet process live.</p></div>';
     return;
   }
   el("detailTitle").textContent = p.name;
@@ -384,16 +491,37 @@ async function runPacket(p, isSequence){
   log('Cheap model extracted 11 fields • quote-or-abstain check running…');
   await sleep(650);
   // Special logs
-  if(p.id==="pkt-nair") log('<span class="warn">Quote verification FAILED on 2 fields → confidence capped at 0.50 → gate: &lt;0.70 = blank / abstain</span>');
+  var ao = state.mode==="agent-only";
+  if(p.id==="pkt-nair") log(ao
+    ? '<span class="warn">Quote verification FAILED on 2 fields → verifier pass confirms: no quotable evidence → determination: NEEDS_INFO</span>'
+    : '<span class="warn">Quote verification FAILED on 2 fields → confidence capped at 0.50 → gate: &lt;0.70 = blank / abstain</span>');
   if(p.id==="pkt-rivera") log('<span class="warn">Conflict detected: License Expiry 2027-03-15 vs 2027-06-30 → escalating 1 field to Opus tier…</span>');
   if(p.id==="pkt-rivera") await sleep(700);
-  if(p.id==="pkt-rivera") log('Opus tier resolved to renewal letter • confidence 0.78 → gate: 0.70–0.89 = human review');
+  if(p.id==="pkt-rivera") log(ao
+    ? 'Adjudication: renewal letter (primary source) outranks wallet card → 2027-06-30 • verifier pass corroborated → determination: APPROVED'
+    : 'Opus tier resolved to renewal letter • confidence 0.78 → gate: 0.70–0.89 = human review');
   if(p.id==="pkt-okafor") log('Deterministic rules: NPI ✓ • DEA ✓ • <span class="err">License expiry 2025-09-30 — EXPIRED ✗</span>');
   else log('Deterministic rules: NPI check-digit ✓ • Expiry ✓ • Sanctions ✓');
+  if(ao && p.id==="pkt-chen") log('Verifier pass: 11/11 fields independently re-derived to the same value • portal checkpoint: machine-channel attestation ✓');
   await sleep(600);
   el("detailBody").innerHTML = detailHTML(p,4);
   // Decision order
-  if(p.hardFail){
+  if(ao){
+    state.statuses[p.id]=p.ao.final; state.doneCount++;
+    state.detCount++; state.detCostSum += parseFloat(p.ao.cost.slice(1));
+    if(p.ao.final==="SUBMITTED"){
+      state.subCount++;
+      if(p.id==="pkt-chen"){ state.chenSubmitted=true; el("dupBtn").disabled=false; }
+    }
+    var detLog = {
+      "pkt-chen":'<span class="ok">⚖ DETERMINATION APPROVED → SUBMITTED ✓ (idempotency key recorded) · pending human: 0</span>',
+      "pkt-okafor":'<span class="err">⚖ DETERMINATION RETURNED — hard rule fired, deficiency named · pending human: 0</span>',
+      "pkt-nair":'<span class="warn">⚖ DETERMINATION NEEDS_INFO — DEA + Board Certification named as deficient · pending human: 0</span>',
+      "pkt-rivera":'<span class="ok">⚖ DETERMINATION APPROVED (adjudicated) → SUBMITTED ✓ · dissent preserved in audit log · pending human: 0</span>'
+    };
+    log(detLog[p.id]);
+    renderScoreboard();
+  } else if(p.hardFail){
     state.statuses[p.id]="NEEDS_INFO"; state.doneCount++;
     log('<span class="err">Decision #1 — hard rule failure → NEEDS_INFO. Packet stopped. Model confidence ignored.</span>');
   } else if(p.needsMFA){
@@ -418,7 +546,8 @@ async function runAll(){
   state.running=true; el("runAllBtn").disabled=true; el("runAllBtn").textContent="● Running… watch each packet";
   log('<strong>▶ DEMO START</strong> — 4 packets, synthetic data');
   for(var i=0;i<PACKETS.length;i++){ await runPacket(PACKETS[i], true); }
-  log('<span class="ok">▶ DEMO COMPLETE</span> — 1 submitted, 1 hard-stopped, 2 to human review. Exactly as designed.');
+  if(state.mode==="agent-only") log('<span class="ok">▶ DEMO COMPLETE</span> — Determinations 4/4 · Pending human 0: 2 submitted autonomously, 1 returned, 1 needs-info. Exactly as designed.');
+  else log('<span class="ok">▶ DEMO COMPLETE</span> — 1 submitted, 1 hard-stopped, 2 to human review. Exactly as designed.');
   el("runAllBtn").disabled=false; el("runAllBtn").textContent="▶ Run Full Demo — 90 seconds";
   state.running=false;
   runEval(true);
@@ -436,22 +565,30 @@ async function runEval(silent){
   var n=0;
   var iv=setInterval(function(){ n+=4; if(n>=44){n=44;clearInterval(iv);} el("evalScore").textContent=n+" / 44"; },90);
   await sleep(1100);
-  el("evalText").textContent="44 of 44 field outcomes match the answer key — including the 2 intentional blanks and the 1 escalated conflict. Graded on finished packets, not on how cheap the calls were.";
+  el("evalText").textContent="44 of 44 field outcomes match the answer key — including the 2 intentional blanks and the 1 escalated conflict. Graded on finished packets, not on how cheap the calls were. Agent-only mode, same answer key: 4/4 determinations, adjudication 1/1, verifier agreement 44/44.";
   el("evalCost").textContent="$0.00271 total";
   el("evalEsc").textContent="1 field only";
   el("evalDup").textContent="1 blocked ✓";
+  el("evalDet").textContent="4 / 4";
+  el("evalAdj").textContent="1 / 1";
+  el("evalVer").textContent="100% (44/44)";
   log('<span class="ok">EVAL: 44/44 correct • total cost $0.00271 • 1 escalation • 1 duplicate blocked</span>');
+  log('<span class="ok">EVAL (agent-only): determinations 4/4 • adjudication 1/1 • verifier agreement 44/44 • pending human 0</span>');
 }
 function resetDemo(keepLog){
-  state={statuses:{},activeId:null,running:false,chenSubmitted:false,doneCount:0};
+  var mode = state.mode;
+  state={statuses:{},activeId:null,running:false,chenSubmitted:false,doneCount:0,
+    mode:mode, detCount:0, subCount:0, detCostSum:0};
   PACKETS.forEach(function(p){ state.statuses[p.id]="QUEUED"; });
   window._runAllResolve=null;
   renderQueue();
+  renderScoreboard();
   el("detailTitle").textContent="Live Run"; el("detailStatus").textContent="Ready";
-  el("detailBody").innerHTML='<div class="detail-empty"><strong>Press “Run Full Demo” to start</strong>Packets will process one by one here — fields, confidence, quotes, and the final decision. Packet 1 will pause and ask you for the human code.</div>';
+  el("detailBody").innerHTML='<div class="detail-empty"><strong>Press “Run Full Demo” to start</strong>'+MODE_TEXT[mode].empty+'</div>';
   el("detailBody").className="";
   el("dupBtn").disabled=true; el("dupResult").textContent="";
   el("evalScore").textContent="— / 44";
+  el("evalDet").textContent="—"; el("evalAdj").textContent="—"; el("evalVer").textContent="—";
   if(!keepLog) el("auditLog").innerHTML='<span class="dim">// Audit log will stream here as the agent works.\n // Every extraction, rule check, escalation, and pause is written down.</span>';
 }
 renderQueue();
